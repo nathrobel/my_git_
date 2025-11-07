@@ -40,7 +40,7 @@ def main():
             os.makedirs(f".git/objects/{folder}",exist_ok = True)
             with open(path,"wb") as f:
                 f.write(zlib.compress(header + contents))
-    elif command == "ls-command" and sys.argv[2] == "--name-only":
+    elif command == "ls-tree" and sys.argv[2] == "--name-only":
         hash = sys.argv[3]
         folder = hash[:2]
         filename = hash[2:]
