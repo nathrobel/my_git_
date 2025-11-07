@@ -40,6 +40,32 @@ def main():
             os.makedirs(f".git/objects/{folder}",exist_ok = True)
             with open(path,"wb") as f:
                 f.write(zlib.compress(header + contents))
+    elif command == "ls-command" and sys.argv[2] == "--name-only":
+        hash = sys.argv[3]
+        folder = hash[:2]
+        filename = hash[2:]
+        path = f".git/objects/{folder}/{filename}"
+        with open(path,"rb") as f:
+            data= zlib.decompress(f.read())
+            null_index = data.find(b'\x00')
+            entries_data=data[null_index+1:]
+            i = 0
+            names = []
+            while i< len(entries_data):
+                null_byte_index = entries_data.find(b'\x00', i)
+                entry = entries_data[i:null_byte_index]  # slices <mode> <name>
+                mode, name = entry.split(b' ', 1)
+                names.append(name.decode())
+                i = null_byte_index + 1 + 20 
+            names.sort()
+            for name in names:
+                print(name)
+           
+
+
+
+               
+               
 
 
 
