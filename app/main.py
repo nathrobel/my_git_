@@ -1,13 +1,13 @@
 import sys
 import os
 import zlib
+import hashlib
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
 
-    # TODO: Uncomment the code below to pass the first stage
-    #
+    
     command = sys.argv[1]
     if command == "init":
         os.mkdir(".git")
@@ -28,6 +28,29 @@ def main():
             content = data[x+1:]
             content_decoded = content.decode("utf-8")
             print (content_decoded,end = "")
+    elif command == "hash-object" and sys.argv[2] == "-w":
+        with open(sys.argv[3], "rb") as f:
+            contents = f.read()
+            header = f"blob {len(contents)}\0".encode("utf-8")
+            sha1_hash = hashlib.sha1(header + contents).hexdigest()
+            print(sha1_hash)
+            folder,filename = sha1_hash[:2],sha1_hash[2:]
+            path = f".git/objects/{folder}/{filename}"
+
+            os.makedirs(f".git/objects/{folder}",exist_ok = True)
+            with open(path,"wb") as f:
+                f.write(zlib.compress(header + contents))
+
+
+
+
+
+
+
+
+
+
+
 
             
 
