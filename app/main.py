@@ -3,6 +3,7 @@ import os
 import zlib
 import hashlib
 
+
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!", file=sys.stderr)
@@ -60,6 +61,71 @@ def main():
             names.sort()
             for name in names:
                 print(name)
+    elif command == "write-tree":
+        
+        def write_tree(dir_path="."):
+            entries = []
+
+            # Go through everything in the directory
+            for entry in sorted(os.listdir(dir_path)):
+                if entry == ".git":  # never include .git itself
+                    continue
+
+                full_path = os.path.join(dir_path, entry)
+
+                # ---------- CASE 1: FILE ----------
+                if os.path.isfile(full_path):
+                    # Read the file
+                    with open(full_path, "rb") as f:
+                        data = f.read()
+
+                    # Build a blob object ("blob <size>\0<contents>")
+                    blob_data = f"blob {len(data)}\0".encode() + data
+                    blob_sha = hashlib.sha1(blob_data).hexdigest()
+
+                    # Save the blob to .git/objects if not already there
+                    folder, filename = blob_sha[:2], blob_sha[2:]
+                    obj_path = f".git/objects/{folder}/{filename}"
+                    if not os.path.exists(obj_path):
+                        os.makedirs(f".git/objects/{folder}", exist_ok=True)
+                        with open(obj_path, "wb") as f:
+                            f.write(zlib.compress(blob_data))
+
+                    # Add this file entry to the tree (mode + name + binary sha)
+                    entries.append(b"100644 " + entry.encode() + b"\0" + bytes.fromhex(blob_sha))
+
+                #  CASE 2: DIRECTORY
+                elif os.path.isdir(full_path):
+                    # Recursively write the subdirectory tree
+                    subtree_sha = write_tree(full_path)
+
+                    # Add the directory entry to the parent tree
+                    entries.append(b"40000 " + entry.encode() + b"\0" + bytes.fromhex(subtree_sha))
+
+            # BUILD THIS DIRECTORY'S TREE OBJECT
+            body = b"".join(entries)
+            header = f"tree {len(body)}\0".encode()
+            full_data = header + body
+
+            # Compute the SHA-1 of this tree object
+            tree_sha = hashlib.sha1(full_data).hexdigest()
+
+            # Save the tree object
+            folder, filename = tree_sha[:2], tree_sha[2:]
+            obj_path = f".git/objects/{folder}/{filename}"
+            if not os.path.exists(obj_path):
+                os.makedirs(f".git/objects/{folder}", exist_ok=True)
+                with open(obj_path, "wb") as f:
+                    f.write(zlib.compress(full_data))
+
+            # Return this tree’s SHA to the parent
+            return tree_sha
+
+        # Start from the current directory and print the root tree SHA
+        root_sha = write_tree(".")
+        print(root_sha)
+
+
            
 
 
