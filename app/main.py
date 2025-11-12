@@ -5,6 +5,7 @@ import hashlib
 import time
 import urllib.request
 import re
+import struct
 
 
 def main():
@@ -222,6 +223,54 @@ def main():
         print(f"Requesting packfile for {main_commit}", file=sys.stderr)
         pack_data = request_pack(repo_url, main_commit)
         print(f"Received {len(pack_data)} bytes of pack data", file=sys.stderr)
+
+        # Step 4: unpack the packfile
+
+        print("Unpacking packfile...", file=sys.stderr)
+
+        data = pack_data
+        assert data[:4] == b"PACK", "Not a packfile"
+        version = struct.unpack("!I", data[4:8])[0]
+        obj_count = struct.unpack("!I", data[8:12])[0]
+        print(f"Packfile version {version}, {obj_count} objects", file=sys.stderr)
+
+        offset = 12
+        for i in range(obj_count):
+            c = data[offset]
+            offset += 1
+            obj_type = (c >> 4) & 7  # upper bits
+            size = c & 0x0F
+            shift = 4
+            while c & 0x80:
+                c = data[offset]
+                offset += 1
+                size |= (c & 0x7F) << shift
+                shift += 7
+
+            # Only handle commit/tree/blob objects
+            type_name = {1: "commit", 2: "tree", 3: "blob"}.get(obj_type)
+            if not type_name:
+                print(f"Skipping delta or unknown object type {obj_type}", file=sys.stderr)
+                break
+
+            # Decompress the zlib stream
+            decompress = zlib.decompressobj()
+            obj_data = decompress.decompress(data[offset:])
+            consumed = len(data[offset:]) - len(decompress.unused_data)
+            offset += consumed
+            raw_obj = f"{type_name} {len(obj_data)}\0".encode() + obj_data
+
+            # Compute SHA-1
+            sha1 = hashlib.sha1(raw_obj).hexdigest()
+            folder, filename = sha1[:2], sha1[2:]
+            obj_path = os.path.join(target_dir, ".git", "objects", folder, filename)
+            os.makedirs(os.path.dirname(obj_path), exist_ok=True)
+            with open(obj_path, "wb") as f:
+                f.write(zlib.compress(raw_obj))
+            print(f"Wrote {type_name} {sha1}", file=sys.stderr)
+
+        print("Unpack complete!", file=sys.stderr)
+
 
     else:
         raise RuntimeError(f"Unknown command #{command}")
