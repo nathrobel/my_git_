@@ -193,15 +193,15 @@ def main():
         lines = data.decode(errors="ignore").splitlines()
         main_commit = None
         for line in lines:
-            m = re.search(r'([0-9a-f]{40})\s+refs/heads/main', line)
+            m = re.search(r'([0-9a-f]{40})\s+refs/heads/(main|master)', line)
             if m:
                 main_commit = m.group(1)
                 break
 
         if not main_commit:
-            raise RuntimeError("Couldn't find refs/heads/main in advertisement")
+            raise RuntimeError("Couldn't find refs/heads/main or master in advertisement")
 
-        print(f"Main branch commit: {main_commit}", file=sys.stderr)
+        print(f"Default branch commit: {main_commit}", file=sys.stderr)
         # Step 3: request the packfile
         
         def make_packet_line(s):
