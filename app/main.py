@@ -3,7 +3,7 @@ import os
 import zlib
 import hashlib
 import time
-import urllib
+import urllib.request
 
 
 def main():
