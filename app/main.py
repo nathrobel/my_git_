@@ -4,6 +4,7 @@ import zlib
 import hashlib
 import time
 import urllib.request
+import re
 
 
 def main():
@@ -182,8 +183,45 @@ def main():
                 data = resp.read()
             # For now just confirm we got something
             print(f"Fetched {len(data)} bytes from remote", file=sys.stderr)
+        
+        
         except Exception as e:
             print(f"Failed to fetch remote refs: {e}", file=sys.stderr)
+        import re
+
+        # Parse the ref advertisement
+        lines = data.decode(errors="ignore").splitlines()
+        main_commit = None
+        for line in lines:
+            m = re.search(r'([0-9a-f]{40})\s+refs/heads/main', line)
+            if m:
+                main_commit = m.group(1)
+                break
+
+        if not main_commit:
+            raise RuntimeError("Couldn't find refs/heads/main in advertisement")
+
+        print(f"Main branch commit: {main_commit}", file=sys.stderr)
+        # Step 3: request the packfile
+        
+        def make_packet_line(s):
+            return f"{len(s) + 4:04x}{s}".encode()
+
+        def request_pack(repo_url, commit_sha):
+            pack_url = repo_url.rstrip("/") + "/git-upload-pack"
+            body = b"".join([
+                make_packet_line(f"want {commit_sha}\n"),
+                b"0000",  # flush packet
+                make_packet_line("done\n")
+            ])
+            req = urllib.request.Request(pack_url, data=body, method="POST")
+            req.add_header("Content-Type", "application/x-git-upload-pack-request")
+            with urllib.request.urlopen(req) as resp:
+                return resp.read()
+
+        print(f"Requesting packfile for {main_commit}", file=sys.stderr)
+        pack_data = request_pack(repo_url, main_commit)
+        print(f"Received {len(pack_data)} bytes of pack data", file=sys.stderr)
 
     else:
         raise RuntimeError(f"Unknown command #{command}")
