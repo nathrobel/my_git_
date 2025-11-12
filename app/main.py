@@ -2,6 +2,7 @@ import sys
 import os
 import zlib
 import hashlib
+import time
 
 
 def main():
@@ -73,7 +74,7 @@ def main():
 
                 full_path = os.path.join(dir_path, entry)
 
-                # ---------- CASE 1: FILE ----------
+                # CASE 1: FILE 
                 if os.path.isfile(full_path):
                     # Read the file
                     with open(full_path, "rb") as f:
@@ -124,6 +125,44 @@ def main():
         # Start from the current directory and print the root tree SHA
         root_sha = write_tree(".")
         print(root_sha)
+    elif command == "commit-tree":
+        tree_sha = sys.argv[2]
+        parent_sha = sys.argv[4]
+        message = sys.argv[6]
+
+        author_name = "Nathan"
+        author_email = "nathanrbel@gmail.com"
+        timestamp = int(time.time())
+        timezone = "+0000"
+
+        commit_content = (
+        f"tree {tree_sha}\n"
+        f"parent {parent_sha}\n"
+        f"author {author_name} <{author_email}> {timestamp} {timezone}\n"
+        f"committer {author_name} <{author_email}> {timestamp} {timezone}\n"
+        f"\n"
+        f"{message}\n"
+    )
+        
+        commit_bytes = commit_content.encode()
+        header = f"commit {len(commit_bytes)}\0".encode()
+        full_data = header + commit_bytes
+
+        # Hash it
+        commit_sha = hashlib.sha1(full_data).hexdigest()
+
+        #store it
+        folder, filename = commit_sha[:2], commit_sha[2:]
+        obj_path = f".git/objects/{folder}/{filename}"
+        if not os.path.exists(obj_path):
+            os.makedirs(f".git/objects/{folder}", exist_ok=True)
+            with open(obj_path, "wb") as f:
+                f.write(zlib.compress(full_data))
+
+        # Print commit hash
+        print(commit_sha)
+        
+
 
 
            
