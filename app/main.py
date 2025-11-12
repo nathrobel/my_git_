@@ -3,13 +3,13 @@ import os
 import zlib
 import hashlib
 import time
+import urllib
 
 
 def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!", file=sys.stderr)
-
     
+    print("Logs from the program will appear here!", file=sys.stderr)
+
     command = sys.argv[1]
     if command == "init":
         os.mkdir(".git")
@@ -161,37 +161,29 @@ def main():
 
         # Print commit hash
         print(commit_sha)
-        
+    elif command == "clone":
+        # Usage: ./your_program.py clone <repo_url> <target_dir>
+        repo_url = sys.argv[2]
+        target_dir = sys.argv[3]
 
+        # Step 1: create local directory structure
+        os.makedirs(f"{target_dir}/.git/objects", exist_ok=True)
+        os.makedirs(f"{target_dir}/.git/refs", exist_ok=True)
+        with open(f"{target_dir}/.git/HEAD", "w") as f:
+            f.write("ref: refs/heads/main\n")
 
+        print(f"Initialised empty repository in {target_dir}/.git", file=sys.stderr)
 
-           
-
-
-
-               
-               
-
-
-
-
-
-
-
-
-
-
-
-
-            
-
-        
-            
-
-
-
-
-    
+        # Step 2: start fetching remote refs
+        info_refs_url = repo_url.rstrip("/") + "/info/refs?service=git-upload-pack"
+        print(f"Fetching {info_refs_url}", file=sys.stderr)
+        try:
+            with urllib.request.urlopen(info_refs_url) as resp:
+                data = resp.read()
+            # For now just confirm we got something
+            print(f"Fetched {len(data)} bytes from remote", file=sys.stderr)
+        except Exception as e:
+            print(f"Failed to fetch remote refs: {e}", file=sys.stderr)
 
     else:
         raise RuntimeError(f"Unknown command #{command}")
