@@ -228,7 +228,15 @@ def main():
 
         print("Unpacking packfile...", file=sys.stderr)
 
+
         data = pack_data
+
+        # Find start of 'PACK' magic header — Git responses may include a NAK or pkt-line before it
+        pack_start = data.find(b"PACK")
+        if pack_start == -1:
+            raise RuntimeError("Couldn't locate PACK header in response")
+        data = data[pack_start:]  # Trim to just the actual packfile bytes
+
         assert data[:4] == b"PACK", "Not a packfile"
         version = struct.unpack("!I", data[4:8])[0]
         obj_count = struct.unpack("!I", data[8:12])[0]
